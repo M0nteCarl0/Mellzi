@@ -1,4 +1,4 @@
-# Meizu
+# Melzi
 Rayence FPD low level protocol(DaVinchi FW & SW iteraction layer) and commands description
 
 # Project tasks list
