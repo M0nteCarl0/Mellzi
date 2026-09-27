@@ -1,5 +1,6 @@
 #include "mellzi/server.h"
 #include "mellzi/acquisition.h"
+#undef NDEBUG
 #include <cassert>
 #include <iostream>
 #include <thread>

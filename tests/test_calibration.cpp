@@ -1,4 +1,5 @@
 #include "mellzi/calibration.h"
+#undef NDEBUG
 #include <cassert>
 #include <iostream>
 #include <vector>

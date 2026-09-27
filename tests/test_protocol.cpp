@@ -1,4 +1,5 @@
 #include "mellzi/protocol.h"
+#undef NDEBUG
 #include <cassert>
 #include <iostream>
 #include <cstring>

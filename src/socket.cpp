@@ -1,6 +1,7 @@
 #include "mellzi/socket.h"
 #include <iostream>
 #include <cstring>
+#include <atomic>
 
 #if defined(_WIN32)
     #pragma comment(lib, "ws2_32.lib")

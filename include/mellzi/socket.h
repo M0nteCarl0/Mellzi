@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <cstddef>
+#include <atomic>
 #include <span>
 #include <string>
 #include <string_view>

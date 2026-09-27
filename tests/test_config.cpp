@@ -1,4 +1,5 @@
 #include "mellzi/config.h"
+#undef NDEBUG
 #include <cassert>
 #include <iostream>
 #include <filesystem>
