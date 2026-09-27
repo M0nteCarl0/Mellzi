@@ -31,6 +31,7 @@
     #include <unistd.h>
     #include <fcntl.h>
     #include <errno.h>
+    #include <poll.h>
     using socket_t = int;
     inline constexpr socket_t INVALID_SOCK = -1;
 #endif

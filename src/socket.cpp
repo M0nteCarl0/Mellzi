@@ -186,6 +186,7 @@ std::unique_ptr<TcpStream> TcpStream::connect(std::string_view host, uint16_t po
     if (res == 0) {
         connected = true;
     } else {
+#if defined(_WIN32)
         fd_set write_fds;
         FD_ZERO(&write_fds);
         FD_SET(s, &write_fds);
@@ -202,6 +203,19 @@ std::unique_ptr<TcpStream> TcpStream::connect(std::string_view host, uint16_t po
                 connected = true;
             }
         }
+#else
+        pollfd pfd{};
+        pfd.fd = s;
+        pfd.events = POLLOUT;
+        int p_res = ::poll(&pfd, 1, static_cast<int>(timeout.count()));
+        if (p_res > 0 && (pfd.revents & POLLOUT)) {
+            int err = 0;
+            socklen_t err_len = sizeof(err);
+            if (::getsockopt(s, SOL_SOCKET, SO_ERROR, &err, &err_len) == 0 && err == 0) {
+                connected = true;
+            }
+        }
+#endif
     }
 
     // Set back to blocking
@@ -279,6 +293,7 @@ std::unique_ptr<TcpListener> TcpListener::bind(uint16_t port, std::string_view a
 std::unique_ptr<TcpStream> TcpListener::accept(std::chrono::milliseconds timeout) {
     if (sock_ == INVALID_SOCK) return nullptr;
 
+#if defined(_WIN32)
     fd_set read_fds;
     FD_ZERO(&read_fds);
     FD_SET(sock_, &read_fds);
@@ -291,6 +306,15 @@ std::unique_ptr<TcpStream> TcpListener::accept(std::chrono::milliseconds timeout
     if (sel <= 0 || !FD_ISSET(sock_, &read_fds)) {
         return nullptr;
     }
+#else
+    pollfd pfd{};
+    pfd.fd = sock_;
+    pfd.events = POLLIN;
+    int p_res = ::poll(&pfd, 1, static_cast<int>(timeout.count()));
+    if (p_res <= 0 || !(pfd.revents & POLLIN)) {
+        return nullptr;
+    }
+#endif
 
     sockaddr_in client_addr{};
     socklen_t client_len = sizeof(client_addr);
