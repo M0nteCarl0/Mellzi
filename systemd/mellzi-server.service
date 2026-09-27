@@ -1,0 +1,23 @@
+[Unit]
+Description=Mellzi DaVinci Detector Server Daemon for NVIDIA Jetson
+After=network.target nvargus-daemon.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/mellzi
+ExecStart=/opt/mellzi/bin/mellzi_server --port-ctrl 20000 --port-frame 20001 --width 3328 --height 3328 --config-dir /opt/mellzi/config
+Restart=always
+RestartSec=5s
+KillSignal=SIGTERM
+TimeoutStopSec=10s
+
+# Realtime priority and resource limits for Jetson X-ray acquisition
+LimitMEMLOCK=infinity
+CPUSchedulingPolicy=rr
+CPUSchedulingPriority=80
+Nice=-15
+
+[Install]
+WantedBy=multi-user.target
