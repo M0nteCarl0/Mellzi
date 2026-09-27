@@ -45,6 +45,17 @@ The system consists of two primary components:
 
 ---
 
+## Documentation
+
+Detailed technical documentation is provided in the `docs/` directory:
+
+- [Rayence DaVinci Protocol & Detector Logic](docs/protocol_and_detector_logic.md): Reverse-engineered daemon thread architecture, packet framing, command opcodes, and `.initcfg`/`.elsetcfg` layouts.
+- [Mellzi SDK API Reference](docs/api_reference.md): Full reference for the C++20 SDK (`DetectorClient`, `AcquisitionClient`, `CalibrationEngine`, `JetsonServer`) and the C ABI compatibility layer (`VDACQ_*`, `VDC_*`, `VDIP_*`, `VD_*`).
+- [Calibration & Image Processing](docs/calibration_and_image_processing.md): Physical principles, mathematical formulations for dark/gain/BPM corrections, and DICOM window/level transformations.
+- [NVIDIA Jetson Integration & Deployment Guide](docs/jetson_integration_guide.md): Hardware integration (sysfs thermals, I2C smart battery, GPIO sync), TCP kernel tuning, and systemd service deployment.
+
+---
+
 ## Build Instructions
 
 ### Prerequisites

@@ -1,0 +1,185 @@
+name: Build and Publish Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: 'Release tag name (e.g. v1.0.0)'
+        required: false
+        default: 'v1.0.0'
+
+permissions:
+  contents: write
+
+jobs:
+  build-windows:
+    name: Build Windows x64
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+
+      - name: Build
+        run: |
+          cmake --build build --config Release --parallel
+
+      - name: Run Tests
+        run: |
+          ctest --test-dir build -C Release --output-on-failure
+
+      - name: Install to Staging
+        run: |
+          cmake --install build --prefix install --config Release
+
+      - name: Package Windows Artifacts
+        shell: pwsh
+        run: |
+          $ver = if ("${{ github.ref_name }}".StartsWith("v")) { "${{ github.ref_name }}" } else { "${{ github.event.inputs.tag_name }}" }
+          if (-not $ver) { $ver = "v1.0.0" }
+          $zipName = "mellzi-$ver-windows-x64.zip"
+          Compress-Archive -Path "install/*" -DestinationPath $zipName
+          Write-Output "PACKAGE_NAME=$zipName" >> $env:GITHUB_ENV
+
+      - name: Upload Windows Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-x64
+          path: mellzi-*-windows-x64.zip
+
+  build-linux-x86_64:
+    name: Build Linux x86_64
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build g++
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=ON
+
+      - name: Build
+        run: |
+          cmake --build build --parallel
+
+      - name: Run Tests
+        run: |
+          ctest --test-dir build --output-on-failure
+
+      - name: Install to Staging
+        run: |
+          cmake --install build --prefix install
+
+      - name: Package Linux Artifacts
+        run: |
+          VER="${{ github.ref_name }}"
+          if [ -z "$VER" ] || [ "$VER" = "master" ]; then VER="${{ github.event.inputs.tag_name }}"; fi
+          if [ -z "$VER" ]; then VER="v1.0.0"; fi
+          TAR_NAME="mellzi-${VER}-linux-x86_64.tar.gz"
+          tar -czvf "${TAR_NAME}" -C install .
+          echo "PACKAGE_NAME=${TAR_NAME}" >> $GITHUB_ENV
+
+      - name: Upload Linux Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-x86_64
+          path: mellzi-*-linux-x86_64.tar.gz
+
+  build-linux-aarch64:
+    name: Build Linux ARM64 (NVIDIA Jetson)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build gcc-aarch64-linux-gnu g++-aarch64-linux-gnu
+
+      - name: Configure CMake (Cross-Compile)
+        run: |
+          cmake -B build -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_SYSTEM_NAME=Linux \
+            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
+            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
+            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
+            -DBUILD_TESTING=OFF
+
+      - name: Build
+        run: |
+          cmake --build build --parallel
+
+      - name: Install to Staging
+        run: |
+          cmake --install build --prefix install
+
+      - name: Package Jetson ARM64 Artifacts
+        run: |
+          VER="${{ github.ref_name }}"
+          if [ -z "$VER" ] || [ "$VER" = "master" ]; then VER="${{ github.event.inputs.tag_name }}"; fi
+          if [ -z "$VER" ]; then VER="v1.0.0"; fi
+          TAR_NAME="mellzi-${VER}-linux-aarch64-jetson.tar.gz"
+          tar -czvf "${TAR_NAME}" -C install .
+          echo "PACKAGE_NAME=${TAR_NAME}" >> $GITHUB_ENV
+
+      - name: Upload Jetson ARM64 Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-aarch64-jetson
+          path: mellzi-*-linux-aarch64-jetson.tar.gz
+
+  publish-release:
+    name: Publish GitHub Release
+    needs: [build-windows, build-linux-x86_64, build-linux-aarch64]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-x64
+          path: release_assets
+
+      - name: Download Linux x86_64 Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-x86_64
+          path: release_assets
+
+      - name: Download Jetson ARM64 Artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-aarch64-jetson
+          path: release_assets
+
+      - name: Determine Tag
+        id: tag_info
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [ -z "$TAG" ] || [ "$TAG" = "master" ]; then TAG="${{ github.event.inputs.tag_name }}"; fi
+          if [ -z "$TAG" ]; then TAG="v1.0.0"; fi
+          echo "tag=${TAG}" >> $GITHUB_OUTPUT
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.tag_info.outputs.tag }}
+          name: Release ${{ steps.tag_info.outputs.tag }}
+          draft: false
+          prerelease: false
+          generate_release_notes: true
+          files: release_assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

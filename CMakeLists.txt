@@ -108,3 +108,12 @@ install(DIRECTORY config/
 install(FILES systemd/mellzi-server.service
     DESTINATION ${CMAKE_INSTALL_DATADIR}/mellzi/systemd
 )
+
+install(DIRECTORY docs/
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}/mellzi
+)
+
+install(FILES README.md
+    DESTINATION ${CMAKE_INSTALL_DOCDIR}/mellzi
+)
+
